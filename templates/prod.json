@@ -1,0 +1,65 @@
+        {
+            "name": "PROD-Ops_Satellite-Registro_Manual_VMs_Nuevas",
+            "description": "Playbook para suscripción de nuevos hosts/servers a Satellite en producción",
+            "job_type": "run",
+            "inventory_name": "PROD-Servidores_Satellite_IP_Ranges",
+            "playbook_file": "suscribir_satellite_clients_prod.yml",
+            "execution_groups": [
+                "Operaciones UNIX"
+            ],
+            "execution_environment": "EE-unix-satellite",
+            "extra_vars": { "first_time_registration": true },
+            "ask_job_type_on_launch": false,
+            "ask_verbosity_on_launch": false,
+            "ask_limit_on_launch": false,
+            "forks": 20,
+            "is_part_of_workflow": false,
+            "manual_time_in_minutes": 10,
+            "survey_enabled": true,
+            "survey_spec": {
+                "name": "",
+                "description": "",
+                "spec": [
+                    {
+                        "question_name": "Ingresar las ips de los servers que desea registrar a Satellite",
+                        "question_description": "Ingresar la lista de ips separada por comas",
+                        "required": true,
+                        "type": "text",
+                        "variable": "hosts_para_registrar_ip_address",
+                        "min": 0,
+                        "max": 1024,
+                        "default": "",
+                        "choices": "",
+                        "new_question": true
+                    },
+                    {
+                        "question_name": "Ingrese el producto para su servidor, por ejemplo: rhds - Red Hat Directory Server, epel - EPEL. En caso de no necesitar algún producto adicional, dejar en blanco",
+                        "question_description": "Inserte el Producto al que se debe Suscribir su Servidor",
+                        "required": false,
+                        "type": "text",
+                        "variable": "product",
+                        "min": 0,
+                        "max": 1024,
+                        "default": "",
+                        "choices": "",
+                        "new_question": true
+                    },
+                    {
+                        "question_name": "Inserte el ambiente al que pertenece su servidor",
+                        "question_description": "",
+                        "required": true,
+                        "type": "multiplechoice",
+                        "variable": "ambiente",
+                        "min": 0,
+                        "max": 1024,
+                        "default": "",
+                         "choices": [
+                            "duran",
+                            "collaloma",
+                            "oci",
+                            "centrum"
+                        ],
+                        "new_question": false
+                    }
+                ]
+            }

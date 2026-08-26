@@ -1,0 +1,51 @@
+---
+- name: Suscribir Clientes de Producción en Satellite
+  hosts: ggdc-satellite.conecel.com, {{ hosts_para_registrar_ip_address }}
+  gather_facts: true
+  become: true
+  vars:
+    env_map:
+#      prod:
+#        lifecycle_environment_name: "PROD"
+#        location_name: "prod dcp"
+#        capsule_fqdn: ""
+#      dca:
+#        lifecycle_environment_name: "PROD"
+#        location_name: "prod dca"
+#        capsule_fqdn: "-"
+      centrum:
+        lifecycle_environment_name: "Production"
+        location_name: "Centrum"
+        capsule_fqdn: ""
+      duran:
+        lifecycle_environment_name: "Production"
+        location_name: "Duran"
+        capsule_fqdn: ""
+      collaloma:
+        lifecycle_environment_name: "Production"
+        location_name: "Collaloma"
+        capsule_fqdn: ""
+      oci:
+        lifecycle_environment_name: "Production"
+        location_name: "OCI"
+        capsule_fqdn: "goci-capsule-02.conecel.com"
+    satellite_capsule_org_id: "ClaroEcuador"
+  roles:
+    - role: satellite_register_clients_prod
+
+
+
+    - name: Set vars based on environment_input
+      ansible.builtin.set_fact:
+        lifecycle_environment_name: "{{ env_map[ambiente].lifecycle_environment_name }}"
+        location_name: "{{ env_map[ambiente].location_name }}"
+        capsule_fqdn: "{{ env_map[ambiente].capsule_fqdn }}"
+      when: ambiente in env_map and inventory_hostname != 'ggdc-satellite.conecel.com'
+      delegate_to: ggdc-satellite.conecel.com
+      delegate_facts: true
+
+    - name: Root password hardening
+      ansible.builtin.include_role:
+        name: root_passwd_hardening
+      when: first_time_registration
+

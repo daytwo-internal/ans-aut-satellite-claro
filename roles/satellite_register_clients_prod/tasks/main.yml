@@ -1,0 +1,17 @@
+---
+- name: "Claro :: Cambio de Hostname si no es FQDN"
+  ansible.builtin.include_tasks: hostname_fix.yml
+  when: inventory_hostname != 'ggdc-satellite.conecel.com' and first_time_registration
+
+- name: "Claro :: Tareas para determinar versión de OS"
+  ansible.builtin.include_tasks: determinar_os_version.yml
+
+- name: "Claro :: Tareas para establecer el ak a usar"
+  ansible.builtin.include_tasks: set_activation_key.yml
+  when: inventory_hostname == 'ggdc-satellite.conecel.com'
+
+- name: "Claro :: Tarea para la generación de archivo con comando de registro"
+  ansible.builtin.include_tasks: registration_generation.yml
+
+- name: "Claro :: Tarea para la generación de archivo con comando de registro"
+  ansible.builtin.include_tasks: ejecucion_de_registro.yml

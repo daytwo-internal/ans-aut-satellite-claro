@@ -1,0 +1,101 @@
+---
+- name: Get activation keys from Satellite
+  redhat.satellite.resource_info:
+    password: "{{ lookup('env', 'SATELLITE_PASSWORD') }}"
+    server_url: "{{ lookup('env', 'SATELLITE_SERVER_URL') }}"
+    username: "{{ lookup('env', 'SATELLITE_USERNAME') }}"
+    validate_certs: "{{ lookup('env', 'SATELLITE_VALIDATE_CERTS') }}"
+    organization: "{{ satellite_capsule_org_id }}"
+    resource: activation_keys
+  register: ak_info
+
+- name: Normalize inputs
+  ansible.builtin.set_fact:
+    product_input: "{{ product | lower if product is defined else '' }}"
+
+
+- name: Setear Ambiente centrum if undefined
+  ansible.builtin.set_fact:
+    ambiente: centrum
+  when: ambiente is undefined and location_name == 'Centrum'
+
+- name: Setear Ambiente duran if undefined
+  ansible.builtin.set_fact:
+    ambiente: duran
+  when: ambiente is undefined and location_name == 'Duran'
+
+- name: Setear Ambiente Collaloma if undefined
+  ansible.builtin.set_fact:
+    ambiente: collaloma
+  when: ambiente is undefined and location_name == 'Collaloma'
+
+- name: Setear Ambiente oci if undefined
+  ansible.builtin.set_fact:
+    ambiente: oci
+  when: ambiente is undefined and location_name == 'OCI'
+################################################
+
+- name: Build expected AK names
+  ansible.builtin.set_fact:
+    ak_os_only: "AK-{{ os_major }}-{{ ambiente }}"
+
+- name: Extract all AK names
+  ansible.builtin.set_fact:
+    all_ak_names: "{{ ak_info.resources | map(attribute='name') | list }}"
+
+- name: Set ak name for product
+  when: product_input != ''
+  block:
+    # Step 1 — Filter by OS
+    - name: Filter activation keys by OS
+      ansible.builtin.set_fact:
+        aks_by_os: >-
+          {{
+            ak_info.resources
+            | selectattr('name', 'search', '-' ~ os_major ~ '-')
+            | list
+          }}
+
+    # Step 2 — Filter by product (user input, partial match allowed)
+    - name: Filter activation keys by product
+      ansible.builtin.set_fact:
+        aks_by_product: >-
+          {{
+            aks_by_os
+            | selectattr('name', 'search', '-' ~ product_input)
+            | list
+           }}
+
+    # Step 3 — Filter by environment
+    - name: Filter activation keys by environment
+      ansible.builtin.set_fact:
+        matching_aks: >-
+          {{
+            aks_by_product
+            | selectattr('name', 'search', '-' ~ ambiente ~ '$')
+            | map(attribute='name')
+            | list
+          }}
+
+# Case 2 — Product NOT provided → prefer OS-only AK
+- name: Select OS-only AK when product is not provided
+  ansible.builtin.set_fact:
+    matching_aks: "{{ [ak_os_only] }}"
+  when:
+    - product_input == ''
+    - ak_os_only in all_ak_names
+
+# Safety checks
+- name: Fail if no activation key matches
+  ansible.builtin.fail:
+    msg: "No activation key found for OS={{ os_major }}, product={{ product_input | default('N/A') }}, env={{ ambiente }}"
+  when: matching_aks | length == 0
+
+- name: Fail if multiple activation keys match
+  ansible.builtin.fail:
+    msg: "Multiple activation keys match your inputs: {{ matching_aks }}"
+  when: matching_aks | length > 1
+
+- name: Select activation key
+  ansible.builtin.set_fact:
+    activation_key: "{{ matching_aks[0] }}"

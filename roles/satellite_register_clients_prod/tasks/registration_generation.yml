@@ -1,0 +1,28 @@
+---
+- name: Generate registration command
+  redhat.satellite.registration_command:
+    organization: "{{ satellite_capsule_org_id }}"
+    activation_keys: "{{ activation_key }}"
+    setup_insights: true
+    location: "{{ location_name }}"
+    setup_remote_execution: false
+    setup_remote_execution_pull: false
+    update_packages: false
+    force: true
+    jwt_expiration: 4
+    lifecycle_environment: "{{ lifecycle_environment_name }}"
+    password: "{{ lookup('env', 'SATELLITE_PASSWORD') }}"
+    server_url: "{{ lookup('env', 'SATELLITE_SERVER_URL') }}"
+    username: "{{ lookup('env', 'SATELLITE_USERNAME') }}"
+    validate_certs: false
+    insecure: true
+    smart_proxy: "{{ capsule_fqdn | default(omit) }}"
+  no_log: false
+  register: registration_output
+  changed_when: true
+  when: inventory_hostname == 'ggdc-satellite.conecel.com'
+
+- name: Setear variable
+  ansible.builtin.set_fact:
+    reg_command: "{{ hostvars['ggdc-satellite.conecel.com'].registration_output.registration_command }}"
+  when: inventory_hostname != 'ggdc-satellite.conecel.com'

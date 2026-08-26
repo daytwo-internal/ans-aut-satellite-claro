@@ -1,0 +1,16 @@
+- name: Anulando suscripciones previas del host client.
+  community.general.redhat_subscription:
+    state: absent
+  when: inventory_hostname != 'ggdc-satellite.conecel.com'
+
+- name: Ejecutar Clean
+  ansible.builtin.command: "subscription-manager clean"
+  changed_when: true
+  when: inventory_hostname != 'ggdc-satellite.conecel.com'
+
+- name: "Perform registration"
+  become: true
+  ansible.builtin.shell:
+    cmd: "{{ reg_command }}"
+  changed_when: true
+  when: inventory_hostname != 'ggdc-satellite.conecel.com'

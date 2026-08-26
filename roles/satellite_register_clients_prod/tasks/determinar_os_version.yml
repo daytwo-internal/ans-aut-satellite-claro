@@ -1,0 +1,7 @@
+---
+- name: Determine OS major version
+  ansible.builtin.set_fact:
+    os_major: "rhel{{ ansible_facts['distribution_major_version'] }}"
+  delegate_to: ggdc-satellite.conecel.com
+  delegate_facts: true
+  when: inventory_hostname != 'ggdc-satellite.conecel.com'

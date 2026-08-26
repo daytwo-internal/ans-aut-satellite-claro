@@ -1,0 +1,8 @@
+- name: Check if hostname is already a FQDN
+  ansible.builtin.set_fact:
+    is_fqdn: "{{ ansible_fqdn.endswith(satellite_register_clients_prod_desired_domain) }}"
+
+- name: Set FQDN hostname if needed
+  ansible.builtin.hostname:
+    name: "{{ ansible_hostname }}{{ satellite_register_clients_prod_desired_domain }}"
+  when: not is_fqdn
