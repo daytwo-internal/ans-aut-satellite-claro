@@ -1,0 +1,11 @@
+# inventory.yml
+all:
+  hosts:
+    servidor1:
+      ansible_host: 192.168.1.10
+      ansible_user: admin1
+      ansible_password: "{{ vault_pass_servidor1 }}"
+    servidor2:
+      ansible_host: 192.168.1.11
+      ansible_user: root
+      ansible_password: "{{ vault_pass_servidor2 }}"

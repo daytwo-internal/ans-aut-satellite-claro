@@ -1,0 +1,91 @@
+---
+# bootstrap_ssh.yml
+#
+# Playbook de aprovisionamiento inicial (bootstrap) de llave SSH.
+#
+# Se conecta a cada host usando las credenciales YA EXISTENTES de cada
+# servidor (usuario y password propios, definidos como host_vars cifrados
+# con ansible-vault en el inventario de AAP), crea -si no existe- un usuario
+# de automatización común y le copia la llave pública de AAP.
+#
+# A partir de este punto, el resto de los playbooks (registro en Satellite,
+# patching, compliance, etc.) pueden usar UNA sola credencial tipo
+# "Machine / SSH Private Key" en AAP, en vez de una credencial distinta
+# por host.
+#
+# Requisitos en el Execution Environment:
+#   - sshpass instalado (necesario para autenticar por password contra
+#     los hosts en su estado inicial)
+#   - Colección ansible.posix disponible
+#
+# Requisitos en el Project (repo Git sincronizado por AAP):
+#   - files/aap_automation_key_dev.pub  -> llave pública del ambiente dev
+#   - files/aap_automation_key_prod.pub -> llave pública del ambiente prod
+#   - Cada una corresponde a una llave PRIVADA distinta, cargada como una
+#     credencial Machine separada en AAP (una para dev, otra para prod).
+#
+# Este playbook es el MISMO para ambos ambientes: la llave que copia
+# depende de la variable "env_name", que se define en group_vars/all.yml
+# dentro de cada carpeta de inventario (inventories/aap_dev/group_vars/all.yml
+# con env_name: dev, inventories/aap_prod/group_vars/all.yml con
+# env_name: prod). Así, correr este job contra el inventario de dev jamás
+# puede terminar copiando por error la llave de prod, ni viceversa.
+#
+# Nota operativa: si es la primera vez que el nodo de ejecución de AAP se
+# conecta por SSH a estos hosts, puede que la verificación de host key
+# interrumpa la conexión. Si ocurre, define temporalmente en el inventario
+# (a nivel de grupo "all"):
+#   ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+# y retíralo una vez completado el bootstrap.
+
+- name: Aprovisionar llave SSH de automatización en hosts remotos
+  hosts: all
+  gather_facts: false
+  become: true
+
+  vars:
+    automation_user: ansible
+    automation_pubkey_path: "{{ playbook_dir }}/files/aap_automation_key_{{ env_name }}.pub"
+    configurar_sudo_sin_password: true
+
+  tasks:
+
+    - name: Validar que env_name esté definido para este inventario
+      ansible.builtin.assert:
+        that:
+          - env_name is defined
+          - env_name in ['dev', 'prod']
+        fail_msg: >-
+          env_name no está definido (o no es 'dev'/'prod') para
+          {{ inventory_hostname }}. Revisa group_vars/all.yml en la
+          carpeta de este inventario antes de continuar.
+        success_msg: "Ambiente detectado: {{ env_name }}"
+
+    - name: Asegurar que exista el usuario de automatización
+      ansible.builtin.user:
+        name: "{{ automation_user }}"
+        shell: /bin/bash
+        create_home: true
+        state: present
+
+    - name: Copiar la llave pública de AAP al usuario de automatización
+      ansible.posix.authorized_key:
+        user: "{{ automation_user }}"
+        state: present
+        key: "{{ lookup('file', automation_pubkey_path) }}"
+
+    - name: Otorgar sudo sin password al usuario de automatización
+      when: configurar_sudo_sin_password | bool
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/{{ automation_user }}-aap"
+        content: "{{ automation_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "visudo -cf %s"
+
+    - name: Confirmar que el bootstrap se aplicó correctamente
+      ansible.builtin.debug:
+        msg: >-
+          Usuario '{{ automation_user }}' listo en {{ inventory_hostname }}
+          con la llave SSH de AAP configurada.

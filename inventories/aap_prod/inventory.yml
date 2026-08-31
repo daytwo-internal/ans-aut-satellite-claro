@@ -1,0 +1,14 @@
+all:
+  children:
+    webservers:
+      hosts:
+        web01.cliente.local:
+          ansible_host: 10.10.1.11
+    dbservers:
+      hosts:
+        db01.cliente.local:
+          ansible_host: 10.10.1.21
+    appservers:
+      hosts:
+        app01.cliente.local:
+          ansible_host: 10.10.1.31
